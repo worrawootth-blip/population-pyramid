@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เครื่องมือสร้าง Population Pyramid</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f3f5f8;--panel:#fff;--ink:#1c2430;--mute:#66738a;--line:#dbe1ea;--accent:#2a5bd7;--accent-ink:#fff}
+@media (prefers-color-scheme:dark){:root{--bg:#12161d;--panel:#1b2129;--ink:#e8edf5;--mute:#93a0b5;--line:#2c3542;--accent:#6c93ff;--accent-ink:#0b1020}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:"IBM Plex Sans Thai",system-ui,sans-serif;line-height:1.55}
+.wrap{max-width:1180px;margin:0 auto;padding:24px 16px 48px}
+h1{font-size:1.6rem;margin:0 0 4px;font-weight:600}
+.sub{color:var(--mute);margin:0 0 20px}
+.grid{display:grid;grid-template-columns:minmax(300px,400px) 1fr;gap:20px;align-items:start}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+label{display:block;font-size:.88rem;color:var(--mute);margin:12px 0 4px}
+input,select{font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:7px 9px;width:100%}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tablebox{max-height:340px;overflow:auto;border:1px solid var(--line);border-radius:6px;margin-top:6px}
+table{border-collapse:collapse;width:100%}
+th{position:sticky;top:0;background:var(--panel);font-size:.82rem;text-align:left;padding:6px;color:var(--mute);border-bottom:1px solid var(--line)}
+td{padding:3px 4px}
+td input{padding:5px 7px}
+td button{padding:4px 8px}
+button{font:inherit;cursor:pointer;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 14px}
+button:hover{border-color:var(--accent)}
+button.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:500}
+.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.check{display:flex;gap:8px;align-items:center;margin-top:12px;font-size:.9rem}
+.check input{width:auto}
+canvas{width:100%;height:auto;border-radius:8px;border:1px solid var(--line);background:#fff;display:block}
+#empty{color:var(--mute);padding:60px 10px;text-align:center}
+.stats{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin:16px 0 8px}
+.stat{border:1px solid var(--line);border-radius:8px;padding:10px 12px}
+.stat b{display:block;font-size:1.25rem;font-weight:600}
+.stat span{font-size:.82rem;color:var(--mute)}
+#notes{margin:8px 0 0;padding-left:20px}
+#notes li{margin:4px 0}
+.imp{border:1px dashed var(--line);border-radius:8px;padding:10px 12px;margin-top:12px;font-size:.88rem}
+.imp .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+#fileIn{display:none}
+#status{margin:8px 0 0;font-size:.82rem;color:var(--mute)}
+#status.err{color:#d6453d}
+#status.ok{color:#2e9d5b}
+.langbox{display:flex;align-items:center;gap:10px;margin:-6px 0 18px}
+.langbox label{margin:0}
+.langbox select{width:auto}
+.dv{margin-top:18px;border-top:1px solid var(--line);padding-top:6px}
+.dv h3{font-size:1.1rem;margin:12px 0 4px;font-weight:600}
+.stage{border-left:4px solid var(--accent);background:var(--bg);padding:10px 14px;border-radius:6px;margin:10px 0}
+.stage b{display:block;font-size:1.05rem}
+.stage.s1{border-color:#d6453d}.stage.s2{border-color:#2e9d5b}.stage.s3{border-color:#e0a020}.stage.s4{border-color:#7a5fd0}
+.crit{list-style:none;padding:0;margin:8px 0}
+.crit li{margin:3px 0}
+.dv details{margin-top:10px;font-size:.9rem}
+.dv summary{cursor:pointer;color:var(--accent);font-weight:500}
+.dv code{display:block;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:6px 10px;margin:6px 0;font-size:.82rem;white-space:normal}
+.hint{font-size:.8rem;color:var(--mute);margin:6px 0 0}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+<div class="wrap">
+  <h1 data-i18n="h1">เครื่องมือสร้าง Population Pyramid</h1>
+  <p class="sub" data-i18n="sub"></p>
+  <div class="langbox"><label for="lang">Language / ภาษา</label><select id="lang"><option value="th">ไทย</option><option value="en">English</option></select></div>
+  <div class="grid">
+    <section class="panel">
+      <label for="title" style="margin-top:0" data-i18n="lblTitle"></label>
+      <input id="title" value="Population Pyramid">
+
+      <label data-i18n="lblData"></label>
+      <div class="tablebox">
+        <table>
+          <thead><tr><th data-i18n="thAge"></th><th data-i18n="thMen"></th><th data-i18n="thWomen"></th><th></th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p class="hint" data-i18n="hint1"></p>
+      <div class="actions"><button id="addRow" type="button" data-i18n="addRow"></button></div>
+      <div class="imp" id="drop">
+        <div class="row">
+          <button type="button" id="pick" data-i18n="pick"></button>
+          <input type="file" id="fileIn" accept=".xlsx,.xls,.csv,.tsv,.txt">
+          <span data-i18n="pasteHint"></span>
+        </div>
+        <p class="hint" style="margin-top:6px" data-i18n="impHint"></p>
+        <p id="status" role="status"></p>
+      </div>
+
+      <div class="two">
+        <div><label for="style" data-i18n="lblStyle"></label>
+          <select id="style">
+            <option value="bar">แท่งมาตรฐาน</option>
+            <option value="round">แท่งปลายมน</option>
+            <option value="step">พื้นที่ขั้นบันได</option>
+            <option value="lolli">เส้นและจุด (Lollipop)</option>
+          </select></div>
+        <div><label for="palette" data-i18n="lblPal"></label>
+          <select id="palette"></select></div>
+      </div>
+      <div class="check"><input type="checkbox" id="vals"><label for="vals" style="margin:0" data-i18n="lblVals"></label></div>
+
+      <div class="actions">
+        <button id="run" class="primary" type="button" data-i18n="run"></button>
+        <button id="save" type="button" data-i18n="save"></button>
+        <button id="reset" type="button" data-i18n="reset"></button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div id="empty" data-i18n="empty"></div>
+      <div id="out" hidden>
+        <canvas id="cv"></canvas>
+        <div class="stats" id="stats"></div>
+        <ul id="notes"></ul>
+        <div class="dv" id="dv"></div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+
+let LANG="th";
+const PAL_EN={wb:"World Bank (blue–purple)",cl:"Classic (blue–red)",to:"Teal–orange",gp:"Green–pink",su:"Deep purple–gold",mn:"Grey (monochrome)"};
+const I18N={
+th:{h1:"เครื่องมือสร้าง Population Pyramid",sub:"กรอกข้อมูลประชากรตามช่วงอายุ เลือกรูปแบบและสี แล้วกดประมวลผล",
+ lblTitle:"ชื่อกราฟ",lblData:"ข้อมูลประชากร (ช่วงอายุตามเกณฑ์ธนาคารโลก)",thAge:"อายุ (Age)",thMen:"ชาย (Men)",thWomen:"หญิง (Women)",
+ hint1:"กรอกค่าเป็นจำนวนบวกทั้งสองฝั่ง (เช่น % ของประชากร) ค่าเริ่มต้น 80+ เป็นค่าประมาณ",addRow:"+ เพิ่มแถว",
+ pick:"แนบไฟล์ Excel / CSV",pasteHint:"หรือคัดลอกข้อมูลจาก Excel แล้ววาง (Ctrl+V) ในช่องตารางได้เลย",
+ impHint:"ไฟล์ต้องมี 3 คอลัมน์เรียงเป็น Age, Men, Women (แถวหัวตารางมีหรือไม่มีก็ได้) ลากไฟล์มาวางในกรอบนี้ได้ด้วย ถ้าคอลัมน์ Age ถูก Excel แปลงเป็นวันที่ ให้ตั้งรูปแบบเซลล์เป็น Text ก่อน",
+ lblStyle:"รูปแบบกราฟ",lblPal:"เฉดสี",lblVals:"แสดงค่าตัวเลขบนกราฟ",run:"ประมวลผล",save:"บันทึกเป็น PNG",reset:"Reset",
+ empty:"กด “ประมวลผล” เพื่อแสดงกราฟและการวิเคราะห์",
+ s_bar:"แท่งมาตรฐาน",s_round:"แท่งปลายมน",s_step:"พื้นที่ขั้นบันได",s_lolli:"เส้นและจุด (Lollipop)",
+ defTitle:"ปิรามิดประชากร",lgM:"ชาย (Men)",lgW:"หญิง (Women)",axis:"สัดส่วนประชากร (หน่วยตามที่กรอก)",del:"ลบแถว",
+ alertEmpty:"กรุณากรอกข้อมูลอย่างน้อย 1 แถว",pasted:"การวาง",
+ stErr:"อ่านข้อมูลไม่สำเร็จ ตรวจสอบว่ามีคอลัมน์ Age, Men, Women",
+ stOk:(n,src)=>"นำเข้าข้อมูล "+n+" แถวจาก "+src+" แล้ว กด “ประมวลผล” เพื่อสร้างกราฟ",
+ noXlsx:"โหลดตัวอ่าน Excel ไม่ได้ (ต้องใช้อินเทอร์เน็ต) ลองบันทึกไฟล์เป็น CSV แล้วแนบใหม่",openFail:"เปิดไฟล์ไม่ได้: ",
+ noData:"ไม่มีข้อมูลตัวเลขสำหรับวิเคราะห์",totM:"ประชากรชายรวม",totW:"ประชากรหญิงรวม",sexR:"อัตราส่วนเพศ",sexV:v=>v+" ชาย:100 หญิง",
+ young:"วัยเด็ก (ต่ำกว่า 15 ปี)",work:"วัยแรงงาน (15–64 ปี)",old:"วัยสูงอายุ (65 ปีขึ้นไป)",depT:"อัตราส่วนพึ่งพิงรวม",depY:"พึ่งพิงวัยเด็ก",depO:"พึ่งพิงวัยสูงอายุ",
+ med:"อายุมัธยฐาน (ประมาณ)",yrs:" ปี",
+ peak:(a,p)=>"ช่วงอายุที่มีสัดส่วนสูงสุดคือ "+a+" ("+p+"% ของทั้งหมด)",
+ mMore:x=>"ชายมากกว่าหญิงโดยรวม "+x+" จุดเปอร์เซ็นต์",wMore:x=>"หญิงมากกว่าชายโดยรวม "+x+" จุดเปอร์เซ็นต์",eq:"จำนวนชายและหญิงเท่ากัน",
+ exp:"โครงสร้างแบบฐานกว้าง (Expansive) มีประชากรวัยเด็กสัดส่วนสูง บ่งชี้อัตราเกิดสูง และประชากรมีแนวโน้มเพิ่มขึ้นต่อเนื่อง",
+ con:"โครงสร้างแบบหดตัว (Constrictive) ฐานแคบและสัดส่วนผู้สูงอายุสูง บ่งชี้อัตราเกิดต่ำและเข้าสู่สังคมสูงวัย",
+ sta:"โครงสร้างแบบคงที่ (Stationary) ความกว้างแต่ละช่วงวัยใกล้เคียงกัน บ่งชี้การเติบโตของประชากรชะลอตัว",
+ aged:"สัดส่วนผู้สูงอายุ 65+ เกิน 14% ถือเป็นสังคมสูงอายุ (aged society)",ageing:"สัดส่วนผู้สูงอายุ 65+ เกิน 7% ถือว่าเข้าสู่สังคมสูงวัย (ageing society)",
+ narrow:"ฐานปิรามิด (ช่วงอายุน้อยสุด) แคบกว่าช่วงถัดไป สะท้อนว่าอัตราเกิดเริ่มลดลง",
+ noParse:"ไม่สามารถอ่านช่วงอายุเป็นตัวเลขได้ จึงแสดงเฉพาะสถิติรวม (ใช้รูปแบบ 0-4, 5-9, ..., 80+)"},
+en:{h1:"Population Pyramid Generator",sub:"Enter population by age group, choose a style and colors, then click Generate.",
+ lblTitle:"Chart title",lblData:"Population data (World Bank age groups)",thAge:"Age",thMen:"Men",thWomen:"Women",
+ hint1:"Enter positive values for both sides (e.g. % of population). The 80+ defaults are approximate.",addRow:"+ Add row",
+ pick:"Attach Excel / CSV file",pasteHint:"or copy data from Excel and paste (Ctrl+V) into the table",
+ impHint:"The file needs 3 columns in this order: Age, Men, Women (a header row is optional). You can also drag a file into this box. If Excel turns Age into dates, set that column's format to Text first.",
+ lblStyle:"Chart style",lblPal:"Color palette",lblVals:"Show values on chart",run:"Generate",save:"Save as PNG",reset:"Reset",
+ empty:"Click “Generate” to see the chart and analysis.",
+ s_bar:"Standard bars",s_round:"Rounded bars",s_step:"Step area",s_lolli:"Lollipop",
+ defTitle:"Population Pyramid",lgM:"Men",lgW:"Women",axis:"Share of population (units as entered)",del:"Delete row",
+ alertEmpty:"Please enter at least one row of data.",pasted:"pasted data",
+ stErr:"Could not read the data. Check that it has Age, Men, Women columns.",
+ stOk:(n,src)=>"Imported "+n+" rows from "+src+". Click “Generate” to build the chart.",
+ noXlsx:"Could not load the Excel reader (internet required). Save the file as CSV and attach it again.",openFail:"Could not open file: ",
+ noData:"No numeric data to analyze.",totM:"Total men",totW:"Total women",sexR:"Sex ratio",sexV:v=>v+" males per 100 females",
+ young:"Children (under 15)",work:"Working age (15–64)",old:"Elderly (65+)",depT:"Total dependency ratio",depY:"Youth dependency",depO:"Old-age dependency",
+ med:"Median age (approx.)",yrs:" yrs",
+ peak:(a,p)=>"The largest age group is "+a+" ("+p+"% of the total).",
+ mMore:x=>"Men outnumber women overall by "+x+" percentage points.",wMore:x=>"Women outnumber men overall by "+x+" percentage points.",eq:"The numbers of men and women are equal.",
+ exp:"Expansive structure: a wide base with a high share of children, indicating high birth rates and continued population growth.",
+ con:"Constrictive structure: a narrow base and a high share of older people, indicating low birth rates and an ageing society.",
+ sta:"Stationary structure: age groups are similar in width, indicating slowing population growth.",
+ aged:"The 65+ share exceeds 14%, which is classed as an aged society.",ageing:"The 65+ share exceeds 7%, which marks an ageing society.",
+ narrow:"The youngest age group is narrower than the next one, suggesting birth rates are starting to fall.",
+ noParse:"Age groups could not be read as numbers, so only overall statistics are shown (use the format 0-4, 5-9, ..., 80+)."}
+};
+
+Object.assign(I18N.th,{
+ dvTitle:"การวิเคราะห์การปันผลประชากร (Population Dividend)",
+ dvNone:"ไม่สามารถวิเคราะห์ปันผลประชากรได้ เนื่องจากอ่านช่วงอายุเป็นตัวเลขไม่ได้ หรือไม่มีประชากรวัยแรงงาน (15–64 ปี)",
+ dvStage:"ระยะของปันผลประชากร",
+ st1n:"ก่อนเข้าสู่ช่วงปันผล (Pre-dividend)",st2n:"ช่วงปันผลระยะแรก (Early dividend)",st3n:"ช่วงปันผลระยะท้าย (Late dividend)",st4n:"หลังช่วงปันผล (Post-dividend)",
+ st1d:"สัดส่วนวัยเด็กยังสูง ภาระพึ่งพิงส่วนใหญ่มาจากเด็ก ควรลงทุนด้านสาธารณสุข การศึกษา และการวางแผนครอบครัว เพื่อให้สัดส่วนวัยเด็กลดลงและเปิดหน้าต่างปันผลในอนาคต",
+ st2d:"วัยเด็กลดลงแล้วขณะที่ผู้สูงอายุยังน้อย สัดส่วนวัยแรงงานกำลังเพิ่ม เป็นช่วงที่ได้ประโยชน์สูงสุด ควรเร่งสร้างงาน ยกระดับทักษะ และส่งเสริมการออมก่อนสังคมสูงวัย",
+ st3d:"วัยแรงงานยังมีสัดส่วนสูง แต่ผู้สูงอายุเพิ่มขึ้นเร็ว หน้าต่างปันผลใกล้ปิด ควรเพิ่มผลิตภาพแรงงาน ขยายระบบบำนาญและการออม และเตรียมระบบสุขภาพรองรับผู้สูงวัย (ปันผลประชากรที่สอง)",
+ st4d:"ผู้สูงอายุมีสัดส่วนสูง หน้าต่างปันผลประชากรปิดแล้ว การเติบโตต้องพึ่งผลิตภาพ เทคโนโลยี การขยายอายุการทำงาน และการดึงแรงงานเพิ่ม",
+ dvWork:"สัดส่วนวัยแรงงาน (15–64 ปี)",dvSup:"อัตราส่วนผู้ทำงานต่อผู้พึ่งพิง",dvSupV:v=>v+" คน ต่อผู้พึ่งพิง 1 คน",
+ dvWin:"หน้าต่างปันผลประชากร",dvOpen:"เปิดอยู่",dvClosed:"ยังไม่เปิด / ปิดแล้ว",dvRep:"อัตราส่วนทดแทนแรงงาน (0–14 ÷ 50–64)",
+ dvCrit:"เกณฑ์พิจารณาการเปิดหน้าต่างปันผล",c1:"เด็ก 0–14 ปี น้อยกว่า 30%",c2:"ผู้สูงอายุ 65+ น้อยกว่า 15%",c3:"อัตราส่วนพึ่งพิงรวม น้อยกว่า 50",
+ repUp:"แรงงานรุ่นใหม่ (0–14 ปี) มากกว่าผู้ใกล้เกษียณ (50–64 ปี) กำลังแรงงานมีแนวโน้มเพิ่มขึ้นในอีก 15 ปีข้างหน้า",
+ repDown:"แรงงานรุ่นใหม่ (0–14 ปี) น้อยกว่าผู้ใกล้เกษียณ (50–64 ปี) กำลังแรงงานมีแนวโน้มลดลงในอีก 15 ปีข้างหน้า",
+ repFlat:"แรงงานรุ่นใหม่และผู้ใกล้เกษียณใกล้เคียงกัน กำลังแรงงานมีแนวโน้มทรงตัว",
+ dvSecond:"เมื่อผู้สูงอายุเพิ่มขึ้น ควรมุ่งสู่ “ปันผลประชากรที่สอง” ผ่านการออม การลงทุน และทุนมนุษย์ เพื่อรักษาการเติบโตทางเศรษฐกิจ",
+ dvF:"สูตรที่ใช้คำนวณ",
+ f1:"สัดส่วนวัยแรงงาน = P(15–64) ÷ P(รวม) × 100",f2:"อัตราส่วนพึ่งพิงรวม = [P(0–14) + P(65+)] ÷ P(15–64) × 100",
+ f3:"อัตราส่วนผู้ทำงานต่อผู้พึ่งพิง = P(15–64) ÷ [P(0–14) + P(65+)]",f4:"อัตราส่วนทดแทนแรงงาน = P(0–14) ÷ P(50–64)",
+ f5:"หน้าต่างปันผลเปิดเมื่อ เด็ก < 30% และ 65+ < 15% (เกณฑ์ UN) ตรวจร่วมกับอัตราส่วนพึ่งพิง < 50 (เกณฑ์ธนาคารโลก)",
+ f6:"ระยะ: เด็ก ≥ 30% = ก่อนปันผล; 65+ < 7% = ระยะแรก; 7–15% = ระยะท้าย; ≥ 15% = หลังปันผล โดย P คือค่าที่กรอก จัดกลุ่มตามอายุเริ่มต้นของแต่ละช่วง"
+});
+Object.assign(I18N.en,{
+ dvTitle:"Demographic (Population) Dividend Analysis",
+ dvNone:"The population dividend cannot be analyzed: age groups could not be read as numbers, or there is no working-age (15–64) population.",
+ dvStage:"Dividend stage",
+ st1n:"Pre-dividend",st2n:"Early dividend",st3n:"Late dividend",st4n:"Post-dividend",
+ st1d:"The child share is still high and dependency comes mostly from children. Invest in health, education and family planning so the child share falls and the demographic window can open.",
+ st2d:"Children are declining while older people are still few, so the working-age share is rising. This is the period of greatest benefit: create jobs, build skills and encourage saving before the society ages.",
+ st3d:"The working-age share is still high but the elderly are growing fast and the window is closing. Raise labor productivity, expand pensions and savings, and prepare health systems for ageing (the second dividend).",
+ st4d:"The elderly share is high and the demographic window has closed. Growth must rely on productivity, technology, longer working lives and drawing more people into the labor force.",
+ dvWork:"Working-age share (15–64)",dvSup:"Workers per dependent",dvSupV:v=>v+" workers per dependent",
+ dvWin:"Demographic window",dvOpen:"Open",dvClosed:"Not open / closed",dvRep:"Labor replacement ratio (0–14 ÷ 50–64)",
+ dvCrit:"Criteria for an open demographic window",c1:"Children 0–14 below 30%",c2:"Elderly 65+ below 15%",c3:"Total dependency ratio below 50",
+ repUp:"New entrants (0–14) outnumber those nearing retirement (50–64), so the labor force is likely to grow over the next 15 years.",
+ repDown:"New entrants (0–14) are fewer than those nearing retirement (50–64), so the labor force is likely to shrink over the next 15 years.",
+ repFlat:"New entrants and those nearing retirement are similar in number, so the labor force is likely to stay stable.",
+ dvSecond:"As the elderly share grows, aim for a “second dividend” through savings, investment and human capital to sustain economic growth.",
+ dvF:"Formulas used",
+ f1:"Working-age share = P(15–64) ÷ P(total) × 100",f2:"Total dependency ratio = [P(0–14) + P(65+)] ÷ P(15–64) × 100",
+ f3:"Workers per dependent = P(15–64) ÷ [P(0–14) + P(65+)]",f4:"Labor replacement ratio = P(0–14) ÷ P(50–64)",
+ f5:"The window is open when children < 30% and 65+ < 15% (UN criteria), checked alongside a dependency ratio < 50 (World Bank criteria).",
+ f6:"Stage: children ≥ 30% = pre-dividend; 65+ < 7% = early; 7–15% = late; ≥ 15% = post-dividend. P is the entered value, grouped by each age group's starting age."
+});
+const t=(k,...a)=>{const v=I18N[LANG][k];return typeof v==="function"?v(...a):v};
+const DEFAULTS=[["0-4",4.19,3.97],["5-9",4.37,4.11],["10-14",4.31,4.04],["15-19",4.08,3.82],["20-24",3.89,3.66],["25-29",3.78,3.57],["30-34",3.83,3.66],["35-39",3.65,3.53],["40-44",3.29,3.21],["45-49",2.97,2.93],["50-54",2.87,2.88],["55-59",2.54,2.61],["60-64",2.02,2.16],["65-69",1.70,1.90],["70-74",1.25,1.50],["75-79",0.75,0.98],["80+",0.70,1.05]];
+const PALETTES={
+  wb:["World Bank (น้ำเงิน–ม่วง)","#3d7be8","#b073e3"],
+  cl:["คลาสสิก (ฟ้า–แดง)","#2f80c7","#d9534f"],
+  to:["ทีล–ส้ม","#1f9d8f","#f08a24"],
+  gp:["เขียว–ชมพู","#3f9b5b","#e0679c"],
+  su:["ม่วงเข้ม–เหลืองทอง","#4b3f9e","#e6a919"],
+  mn:["เทา (โมโนโครม)","#5b6676","#a9b2bf"]
+};
+const $=id=>document.getElementById(id);
+const tbody=$("rows"),pal=$("palette");
+for(const k in PALETTES){const o=document.createElement("option");o.value=k;o.textContent=PALETTES[k][0];pal.appendChild(o)}
+
+function addRow(a="",m="",w=""){
+  const tr=document.createElement("tr");
+  tr.innerHTML='<td><input class="a" aria-label="Age"></td><td><input class="m" type="number" step="any" min="0" aria-label="Men"></td><td><input class="w" type="number" step="any" min="0" aria-label="Women"></td><td><button type="button">✕</button></td>';
+  tr.querySelector(".a").value=a;tr.querySelector(".m").value=m;tr.querySelector(".w").value=w;
+  const b=tr.querySelector("button");b.onclick=()=>tr.remove();b.title=t("del");b.setAttribute("aria-label",t("del"));
+  tbody.appendChild(tr);return tr;
+}
+function loadDefaults(){tbody.innerHTML="";DEFAULTS.forEach(r=>addRow(...r))}
+function getData(){
+  return [...tbody.querySelectorAll("tr")].map(tr=>({
+    age:tr.querySelector(".a").value.trim(),
+    m:Math.abs(parseFloat(tr.querySelector(".m").value)||0),
+    w:Math.abs(parseFloat(tr.querySelector(".w").value)||0)
+  })).filter(r=>r.age||r.m||r.w);
+}
+const fmt=(n,d=2)=>n.toLocaleString(LANG==="th"?"th-TH":"en-US",{minimumFractionDigits:d,maximumFractionDigits:d});
+
+function draw(data){
+  const cv=$("cv"),ctx=cv.getContext("2d"),n=data.length;
+  const W=900,rowH=Math.max(20,Math.min(38,560/n)),top=95,bot=70,H=Math.round(top+n*rowH+bot);
+  const S=2;cv.width=W*S;cv.height=H*S;ctx.setTransform(S,0,0,S,0,0);
+  const [,cm,cw]=PALETTES[pal.value],style=$("style").value,font='"IBM Plex Sans Thai",system-ui,sans-serif';
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);
+  const L=62,R=W-30,C=(L+R)/2,half=(R-L)/2;
+  const mx=Math.max(...data.map(d=>Math.max(d.m,d.w)),0.0001);
+  const raw=mx/4,pow=Math.pow(10,Math.floor(Math.log10(raw))),stepOpts=[1,2,2.5,5,10];
+  const step=pow*stepOpts.find(s=>s*pow>=raw),max=Math.ceil(mx/step)*step,sc=half/max;
+  ctx.textBaseline="middle";
+  // title & legend
+  ctx.fillStyle="#1c2430";ctx.textAlign="center";ctx.font="600 22px "+font;
+  ctx.fillText($("title").value||t("defTitle"),W/2,32);
+  ctx.font="14px "+font;
+  [[t("lgM"),cm,C-110],[t("lgW"),cw,C+20]].forEach(([t,c,x])=>{
+    ctx.fillStyle=c;ctx.fillRect(x,56,14,14);ctx.fillStyle="#44505f";ctx.textAlign="left";ctx.fillText(t,x+20,63)});
+  // grid
+  ctx.font="12px "+font;ctx.textAlign="center";
+  for(let v=0;v<=max+1e-9;v+=step){
+    for(const s of [-1,1]){if(v===0&&s===1)continue;
+      const x=C+s*v*sc;ctx.strokeStyle="#e6eaf0";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(x,top-6);ctx.lineTo(x,top+n*rowH);ctx.stroke();
+      ctx.fillStyle="#66738a";ctx.fillText(+v.toFixed(4),x,top+n*rowH+16)}
+  }
+  const yc=i=>top+(n-1-i)*rowH+rowH/2;
+  // age labels
+  ctx.textAlign="right";ctx.fillStyle="#44505f";ctx.font="12px "+font;
+  data.forEach((d,i)=>ctx.fillText(d.age,L-8,yc(i)));
+  // shapes
+  const bh=rowH*0.8;
+  if(style==="step"){
+    for(const [key,col,s] of [["m",cm,-1],["w",cw,1]]){
+      ctx.beginPath();ctx.moveTo(C,top+n*rowH);
+      data.forEach((d,i)=>{const y0=top+(n-1-i)*rowH+rowH,y1=y0-rowH,x=C+s*d[key]*sc;ctx.lineTo(x,y0);ctx.lineTo(x,y1)});
+      ctx.lineTo(C,top);ctx.closePath();
+      ctx.globalAlpha=.55;ctx.fillStyle=col;ctx.fill();ctx.globalAlpha=1;ctx.strokeStyle=col;ctx.lineWidth=2;ctx.stroke();
+    }
+  }else{
+    data.forEach((d,i)=>{
+      const y=yc(i);
+      for(const [key,col,s] of [["m",cm,-1],["w",cw,1]]){
+        const len=d[key]*sc;ctx.fillStyle=col;ctx.strokeStyle=col;
+        if(style==="bar"){ctx.fillRect(s<0?C-len:C,y-bh/2,len,bh)}
+        else if(style==="round"){ctx.beginPath();const r=Math.min(bh/2,len);
+          ctx.roundRect(s<0?C-len:C,y-bh/2,len,bh,s<0?[r,0,0,r]:[0,r,r,0]);ctx.fill()}
+        else{ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(C,y);ctx.lineTo(C+s*len,y);ctx.stroke();
+          ctx.beginPath();ctx.arc(C+s*len,y,Math.min(7,bh/2),0,7);ctx.fill()}
+      }
+    });
+  }
+  ctx.strokeStyle="#44505f";ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(C,top-6);ctx.lineTo(C,top+n*rowH);ctx.stroke();
+  if($("vals").checked){
+    ctx.font="11px "+font;ctx.fillStyle="#1c2430";
+    data.forEach((d,i)=>{const y=yc(i);
+      ctx.textAlign="right";ctx.fillText(fmt(d.m),C-d.m*sc-5,y);
+      ctx.textAlign="left";ctx.fillText(fmt(d.w),C+d.w*sc+5,y)});
+  }
+  ctx.fillStyle="#66738a";ctx.font="12px "+font;ctx.textAlign="center";
+  ctx.fillText(t("axis"),C,H-18);
+}
+
+function analyze(data){
+  const tm=data.reduce((a,d)=>a+d.m,0),tw=data.reduce((a,d)=>a+d.w,0),T=tm+tw;
+  if(!T)return {stats:[],notes:[t("noData")]};
+  let y=0,wk=0,o=0,parsed=0;
+  const g=data.map(d=>{
+    const nums=d.age.match(/\d+/g);let s=null,e=null;
+    if(nums){s=+nums[0];e=nums[1]?+nums[1]+1:s+5;parsed++}
+    const tt=d.m+d.w;
+    if(s!==null){if(e<=15)y+=tt;else if(s>=65)o+=tt;else wk+=tt}
+    return {...d,t:tt,s,e};
+  });
+  const stats=[[t("totM"),fmt(tm)],[t("totW"),fmt(tw)],[t("sexR"),t("sexV",fmt(tm/(tw||1)*100,1))]];
+  const notes=[];
+  const big=g.reduce((a,b)=>b.t>a.t?b:a);
+  notes.push(t("peak",big.age,fmt(big.t/T*100,1)));
+  notes.push(tm>tw?t("mMore",fmt((tm-tw)/T*100,1)):tw>tm?t("wMore",fmt((tw-tm)/T*100,1)):t("eq"));
+  const tall=g.filter(d=>d.s!==null);
+  if(parsed&&wk>0){
+    const P=y+wk+o,ys=y/P*100,ws=wk/P*100,os=o/P*100;
+    stats.push([t("young"),fmt(ys,1)+"%"],[t("work"),fmt(ws,1)+"%"],[t("old"),fmt(os,1)+"%"],
+      [t("depT"),fmt((y+o)/wk*100,1)],[t("depY"),fmt(y/wk*100,1)],[t("depO"),fmt(o/wk*100,1)]);
+    let cum=0,med=null;const half=P/2;
+    for(const d of tall){if(cum+d.t>=half){med=d.s+(half-cum)/d.t*(d.e-d.s);break}cum+=d.t}
+    if(med!==null)stats.push([t("med"),fmt(med,1)+t("yrs")]);
+    notes.unshift(ys>=30?t("exp"):(ys<=20||os>=14)?t("con"):t("sta"));
+    if(os>=14)notes.push(t("aged"));else if(os>=7)notes.push(t("ageing"));
+    if(ys>0&&tall.length>2&&tall[0].t<tall[1].t*0.95)notes.push(t("narrow"));
+  }else notes.unshift(t("noParse"));
+  return {stats,notes};
+}
+
+function dividend(data){
+  let y=0,wk=0,o=0,e0=0,x=0,ok=0;
+  data.forEach(d=>{
+    const nums=d.age.match(/\d+/g);if(!nums)return;ok++;
+    const a=+nums[0],b=nums[1]?+nums[1]+1:a+5,tt=d.m+d.w;
+    if(b<=15){y+=tt;e0+=tt}else if(a>=65)o+=tt;else wk+=tt;
+    if(a>=50&&b<=65)x+=tt;
+  });
+  if(!ok||wk<=0)return "<h3>"+t("dvTitle")+"</h3><p>"+t("dvNone")+"</p>";
+  const P=y+wk+o,ys=y/P*100,ws=wk/P*100,os=o/P*100,dep=(y+o)/wk*100,sup=(y+o)>0?wk/(y+o):null;
+  const c1=ys<30,c2=os<15,c3=dep<50,open=c1&&c2;
+  const n=ys>=30?1:os<7?2:os<15?3:4;
+  const mark=b=>b?"✓":"✗";
+  let h="<h3>"+t("dvTitle")+"</h3>";
+  h+=`<div class="stage s${n}"><b>${t("dvStage")}: ${t("st"+n+"n")}</b><span>${t("st"+n+"d")}</span></div>`;
+  h+='<div class="stats">';
+  h+=`<div class="stat"><b>${fmt(ws,1)}%</b><span>${t("dvWork")}</span></div>`;
+  h+=`<div class="stat"><b>${fmt(dep,1)}</b><span>${t("depT")}</span></div>`;
+  h+=`<div class="stat"><b>${sup===null?"–":t("dvSupV",fmt(sup,2))}</b><span>${t("dvSup")}</span></div>`;
+  h+=`<div class="stat"><b>${open?t("dvOpen"):t("dvClosed")}</b><span>${t("dvWin")}</span></div>`;
+  let rep=null;if(x>0)rep=e0/x;
+  if(rep!==null)h+=`<div class="stat"><b>${fmt(rep,2)}</b><span>${t("dvRep")}</span></div>`;
+  h+="</div>";
+  h+=`<p style="margin:8px 0 2px"><b>${t("dvCrit")}</b></p><ul class="crit">`
+    +`<li>${mark(c1)} ${t("c1")} (${fmt(ys,1)}%)</li><li>${mark(c2)} ${t("c2")} (${fmt(os,1)}%)</li><li>${mark(c3)} ${t("c3")} (${fmt(dep,1)})</li></ul>`;
+  h+="<ul>";
+  if(rep!==null)h+="<li>"+(rep>1.1?t("repUp"):rep<0.9?t("repDown"):t("repFlat"))+"</li>";
+  if(os>=7)h+="<li>"+t("dvSecond")+"</li>";
+  h+="</ul>";
+  h+=`<details><summary>${t("dvF")}</summary>`+["f1","f2","f3","f4"].map(k=>"<code>"+t(k)+"</code>").join("")+`<p class="hint">${t("f5")}</p><p class="hint">${t("f6")}</p></details>`;
+  return h;
+}
+
+function run(){
+  const data=getData();
+  if(!data.length){alert(t("alertEmpty"));return}
+  $("empty").hidden=true;$("out").hidden=false;
+  const draw_=()=>draw(data);draw_();
+  if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw_);
+  const {stats,notes}=analyze(data);
+  $("stats").innerHTML=stats.map(s=>`<div class="stat"><b>${s[1]}</b><span>${s[0]}</span></div>`).join("");
+  $("notes").innerHTML=notes.map(n=>`<li>${n}</li>`).join("");
+  $("dv").innerHTML=dividend(data);
+}
+function save(){
+  if($("out").hidden)run();
+  if($("out").hidden)return;
+  const a=document.createElement("a");
+  a.download=(($("title").value||"population-pyramid").replace(/[\\/:*?"<>|]+/g,"_"))+".png";
+  a.href=$("cv").toDataURL("image/png");document.body.appendChild(a);a.click();a.remove();
+}
+function reset(){
+  $("title").value=t("defTitle");$("style").value="bar";pal.value="wb";$("vals").checked=false;
+  loadDefaults();$("out").hidden=true;$("empty").hidden=false;setStatus("");
+}
+$("addRow").onclick=()=>{const tr=addRow();tr.querySelector(".a").focus();tr.scrollIntoView({block:"nearest"})};
+$("run").onclick=run;$("save").onclick=save;$("reset").onclick=reset;
+
+function setStatus(t,c){const e=$("status");e.textContent=t;e.className=c||""}
+function parseRows(rows){
+  rows=rows.map(r=>r.map(c=>c==null?"":c)).filter(r=>r.some(c=>String(c).trim()!==""));
+  const num=v=>parseFloat(String(v).replace(/[,%\s]/g,""));
+  if(rows.length&&isNaN(num(rows[0][1]??""))&&isNaN(num(rows[0][2]??"")))rows.shift();
+  return rows.map(r=>{const m=num(r[1]??""),w=num(r[2]??"");
+    return [String(r[0]).trim(),isNaN(m)?"":Math.abs(m),isNaN(w)?"":Math.abs(w)]});
+}
+function loadRows(rows,src){
+  const d=parseRows(rows);
+  if(!d.length||d.every(r=>r[1]===""&&r[2]==="")){setStatus(t("stErr"),"err");return false}
+  tbody.innerHTML="";d.forEach(r=>addRow(...r));
+  setStatus(t("stOk",d.length,src),"ok");return true;
+}
+function textToRows(t){
+  const lines=t.replace(/\r/g,"").split("\n");
+  const del=t.includes("\t")?"\t":(t.includes(";")&&!t.includes(",")?";":",");
+  return lines.map(l=>l.split(del).map(c=>c.replace(/^"|"$/g,"")));
+}
+function handleFile(f){
+  if(!f)return;
+  const ext=f.name.split(".").pop().toLowerCase(),fr=new FileReader();
+  if(["xlsx","xls"].includes(ext)){
+    if(typeof XLSX==="undefined"){setStatus(t("noXlsx"),"err");return}
+    fr.onload=e=>{try{
+      const wb=XLSX.read(e.target.result,{type:"array"});
+      const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:""});
+      loadRows(rows,f.name);
+    }catch(err){setStatus(t("openFail")+err.message,"err")}};
+    fr.readAsArrayBuffer(f);
+  }else{
+    fr.onload=e=>loadRows(textToRows(e.target.result),f.name);
+    fr.readAsText(f);
+  }
+}
+$("pick").onclick=()=>$("fileIn").click();
+$("fileIn").onchange=e=>{handleFile(e.target.files[0]);e.target.value=""};
+const drop=$("drop");
+["dragover","dragenter"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor="var(--accent)"}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.style.borderColor=""}));
+drop.addEventListener("drop",e=>handleFile(e.dataTransfer.files[0]));
+tbody.addEventListener("paste",e=>{
+  const txt=(e.clipboardData||window.clipboardData).getData("text");
+  if(!/[\t\n]/.test(txt.trim()))return; // วางค่าเดียวตามปกติ
+  e.preventDefault();loadRows(textToRows(txt.trim()),t("pasted"));
+});
+
+function applyLang(){
+  document.documentElement.lang=LANG;document.title=t("h1");
+  document.querySelectorAll("[data-i18n]").forEach(e=>e.textContent=t(e.dataset.i18n));
+  [...$("style").options].forEach(o=>o.textContent=t("s_"+o.value));
+  [...pal.options].forEach(o=>o.textContent=LANG==="en"?PAL_EN[o.value]:PALETTES[o.value][0]);
+  const ti=$("title");if(Object.values(I18N).some(d=>d.defTitle===ti.value))ti.value=t("defTitle");
+  tbody.querySelectorAll("button").forEach(b=>{b.title=t("del");b.setAttribute("aria-label",t("del"))});
+  setStatus("");
+  if(!$("out").hidden)run();
+}
+$("lang").onchange=e=>{LANG=e.target.value;applyLang()};
+loadDefaults();applyLang();
+</script>
+</body>
+</html>
